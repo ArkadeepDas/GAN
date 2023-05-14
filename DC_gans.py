@@ -70,6 +70,9 @@ class Generator(nn.Module):
             nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
+    
+    def forward(self, x):
+        return self.gene(x)
 
 # In the paper all weights are initialize with 0 mean and 0.02 standard daviation   
 def initialize_weights(model):
@@ -80,3 +83,19 @@ def initialize_weights(model):
         if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
             nn.init.normal_(m.weight.data, 0.0, 0.02)
 
+# Now test the code to understand whether all the shapes are properly working or not
+def test():
+    N, in_channels, H, W = 8, 3, 64, 64
+    z_dim = 100
+    x = torch.randn((N, in_channels, H, W))
+    # 8 is just for testing here
+    disc = Discriminator(in_channels, 8)
+    initialize_weights(disc)
+    assert disc(x).shape == (N, 1, 1, 1)
+    gen = Generator(z_dim, in_channels, 8)
+    initialize_weights(gen)
+    z = torch.randn((N, z_dim, 1, 1))
+    assert gen(z).shape == (N, in_channels, H, W)
+    print("!!Success!!")
+
+test()
