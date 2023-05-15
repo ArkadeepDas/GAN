@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
             self._block(features_d*2, features_d*4, 4, 2, 1), #8x8
             self._block(features_d*4, features_d*8, 4, 2, 1), #4x4
             # At the end there is a single channel which representing fake or real image
-            nn.Conv2d(features_d*8, 1, 4, 2, 0), # Output is 1x1
+            nn.Conv2d(features_d*8, 1, 4, 2, 0), # Output is 1x1 (strides and padding converts 4x4 to 1x1 and we want 1 output)
             nn.Sigmoid() # Convert the output value in range of (0<= value <= 1)
         )
 
