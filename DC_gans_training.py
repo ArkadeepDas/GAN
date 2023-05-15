@@ -43,7 +43,7 @@ disc = Discriminator(CHANNELS_IMG, FEATURE_D).to(device)
 initialize_weights(gen)
 initialize_weights(disc)
 
-opt_gem = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
+opt_gen = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 loss = nn.BCELoss()
 
@@ -82,4 +82,9 @@ for epoch in range(NUM_EPOCHS):
 
         ### Generator train second ###
         # Train Generator to maximize the 1st part of the loss
+        output = disc(fake_img)
+        loss_gen = loss(output, torch.ones_like(output))
+        gen.zero_grad()
+        loss_gen.backward()
+        opt_gen.step()
         
