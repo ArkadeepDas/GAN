@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 # We are importing both the models and the weight initialization 
-from W_gans import Discriminator, Generator, initialize_weights
+from W_gans import Critic, Generator, initialize_weights
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 LEARNING_RATE = 5e-5 # learning rate is different in W-gans
@@ -42,7 +42,7 @@ loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 # Initializing the Models
 gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN).to(device)
-critic = Discriminator(CHANNELS_IMG, FEATURES_DISC).to(device)
+critic = Critic(CHANNELS_IMG, FEATURES_DISC).to(device)
 initialize_weights(gen)
 initialize_weights(critic)
 
@@ -72,7 +72,7 @@ for epoch in range(NUM_EPOCHS):
             noise = torch.randn(BATCH_SIZE, Z_DIM, 1, 1).to(device)
             fake_image = gen(noise)
             critic_real = critic(real_img).reshape(-1)
-            critic_fake = critic(fake_image).rehsape(-1)
+            critic_fake = critic(fake_image).reshape(-1)
             # We want to maximize this loss. So we negate it for maximization 
             # The distance between original and fake is always high. That's the idea here
             loss_critic = -(torch.mean(critic_real) - torch.mean(critic_fake))
@@ -81,5 +81,36 @@ for epoch in range(NUM_EPOCHS):
             opt_critic.step()
             
             # One thing we need to apply is clip the parameters
+            # Basically cliping/converting the parameters in range of -0.01 to 0.01(Vales from paper)
             for p in critic.parameters():
+                # clamp convert the values in some range 
                 p.data.clamp(-WEIGHT_CLIP, WEIGHT_CLIP)
+
+        ################################################
+        # Now train the Generator
+        # Train generator: minimize the distance: min -E[critic(gen_fake)]
+        output = critic(fake_image).reshape(-1)
+        # Now loss calculation
+        loss_gen = -torch.mean(output)
+        gen.zero_grad()
+        loss_gen.backward(retain_graph=True)
+        opt_gen.step()
+
+        # Print losses occationally and print to tensorboard
+        # Here main part is we print it to tensorboard to show the output
+        # This loss here is called non-saturated heuristic 
+        if batch_idx % 100 == 0:
+            print(f"EPOCH[{epoch/NUM_EPOCHS}] Batch: {batch_idx}/{len(loader)} Loss D: {loss_critic}, Loss G: {loss_gen}")
+            # We disabling the gradient to test our result
+            # No gradient will calculated here
+            with torch.no_grad():
+                fake = gen(fixed_noise)
+                # We took 32 examples
+                # Original images grid
+                img_grid_real = torchvision.utils.make_grid(real_img[:32], normalize=True)
+                # Fake images grid
+                img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
+                write_real.add_image("Real", img_grid_real, global_step=step)
+                write_fake.add_image("Fake", img_grid_fake, global_step=step)
+
+# You can see the output images in Tensor Board

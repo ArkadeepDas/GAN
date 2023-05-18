@@ -17,7 +17,7 @@
 # Activation function used here is RMSProp
 
 # It takes longer training time
-# Here we use exact same model as DCGAN
+# Here we use exact same model as DCGAN but change in output activaion of Discriminator/Critic
 
 """
 Discriminator and Generator implementation for DCGAN
@@ -26,12 +26,12 @@ Discriminator and Generator implementation for DCGAN
 import torch
 import torch.nn as nn
 
-class Discriminator(nn.Module):
+class Critic(nn.Module):
     def __init__(self, channels_image, features_d):
         """
         Input shape: N x channels_image x 64 x 64
         """
-        super(Discriminator, self).__init__()
+        super(Critic, self).__init__()
         self.disc = nn.Sequential(
             # DCGANs don't use BatchNorms in the first layer in Disciminator
             nn.Conv2d(channels_image, features_d, kernel_size=4, stride=2, padding=1), # 32 x 32
@@ -41,7 +41,6 @@ class Discriminator(nn.Module):
             self._block(features_d*4, features_d*8, 4, 2, 1), #4x4
             # At the end there is a single channel which representing fake or real image
             nn.Conv2d(features_d*8, 1, 4, 2, 0), # Output is 1x1 (strides and padding converts 4x4 to 1x1 and we want 1 output)
-            nn.Sigmoid() # Convert the output value in range of (0<= value <= 1)
         )
 
     def _block(self, in_channels, out_channels, kernel_size, stride, padding):
@@ -97,7 +96,7 @@ def test():
     z_dim = 100
     x = torch.randn((N, in_channels, H, W))
     # 8 is just for testing here
-    disc = Discriminator(in_channels, 8)
+    disc = Critic(in_channels, 8)
     initialize_weights(disc)
     assert disc(x).shape == (N, 1, 1, 1)
     gen = Generator(z_dim, in_channels, 8)
