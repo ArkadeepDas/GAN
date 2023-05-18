@@ -47,7 +47,7 @@ opt_gen = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 loss = nn.BCELoss()
 
-# We create noise of 32x100x1x1
+# We create noise of 32x100x1x1 for testing purpose
 fixed_noise = torch.randn(32, Z_DIM, 1, 1).to(device)
 print(fixed_noise.shape)
 
@@ -72,19 +72,40 @@ for epoch in range(NUM_EPOCHS):
         ### Discriminator train first ###
         # Train discriminator to minimize the loss function
         disc_real = disc(real_img).reshape(-1) # Here we don't get N x 1 x 1 x 1. We get only N
+        # Loss calculate for Real with label 1
         loss_disc_real = loss(disc_real, torch.ones_like(disc_real))
         disc_fake = disc(fake_img).reshape(-1)
+        # Loss calculate for fake with 0
         loss_disc_fake = loss(disc_fake, torch.zeros_like(disc_fake))
         loss_disc = (loss_disc_real + loss_disc_fake) / 2
         disc.zero_grad()
-        loss_disc.backward()
+        loss_disc.backward(retain_graph=True)
         opt_disc.step()
 
         ### Generator train second ###
         # Train Generator to maximize the 1st part of the loss
-        output = disc(fake_img)
+        output = disc(fake_img).reshape(-1)
+        # This loss is calculated with label 1 to maximize the loss
         loss_gen = loss(output, torch.ones_like(output))
         gen.zero_grad()
-        loss_gen.backward()
+        loss_gen.backward(retain_graph=True)
         opt_gen.step()
-        
+
+        # Print losses occationally and print to tensorboard
+        # Here main part is we print it to tensorboard to show the output
+        # This loss here is called non-saturated heuristic 
+        if batch_idx % 100 == 0:
+            print(f"EPOCH[{epoch/NUM_EPOCHS}] Batch: {batch_idx}/{len(loader)} Loss D: {loss_disc}, Loss G: {loss_gen}")
+            # We disabling the gradient to test our result
+            # No gradient will calculated here
+            with torch.no_grad():
+                fake = gen(fixed_noise)
+                # We took 32 examples
+                # Original images grid
+                img_grid_real = torchvision.utils.make_grid(real_img[:32], normalize=True)
+                # Fake images grid
+                img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
+                write_real.add_image("Real", img_grid_real, global_step=step)
+                write_fake.add_image("Fake", img_grid_fake, global_step=step)
+
+# You can see the output images in Tensor Board
