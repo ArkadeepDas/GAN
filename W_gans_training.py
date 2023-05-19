@@ -2,6 +2,17 @@
 Now in this script we train our W_GAM network on MINST dataset with Discriminator and Generator imported from W_gans.py
 """
 
+########################################### FOR W-GAN GP Training ###########################################
+# LEARNING_RATE will update to 1e-4
+# Change Discriminator/Critic Normalization part from BatchNorm2d to InstanceNorm2d or LayerNorm
+# Remove WEIGHT_CLIP 
+# import gradient_penalty from W_gans_gradient_penalty
+# Add LAMBDA_GP = 10
+# Change optimizer to Adam line 61 and 62
+# Add gradient penalty in line 88
+# Gradient penalty loss is added in line 93
+#############################################################################################################
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,6 +23,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 # We are importing both the models and the weight initialization 
 from W_gans import Critic, Generator, initialize_weights
+from W_gans_gradient_penalty import gradient_penalty
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 LEARNING_RATE = 5e-5 # learning rate is different in W-gans
@@ -73,8 +85,16 @@ for epoch in range(NUM_EPOCHS):
             fake_image = gen(noise)
             critic_real = critic(real_img).reshape(-1)
             critic_fake = critic(fake_image).reshape(-1)
+            #############################################################################################
+            
+            # Gradient penalty is adding for W-Gan GP
+            ### gp = gradient_penalty(critic, real_img, fake, device=device)
             # We want to maximize this loss. So we negate it for maximization 
             # The distance between original and fake is always high. That's the idea here
+            # For W-GAN GP we add gradient penalty in loss
+            ### loss_critic = -((torch.mean(critic_real) - torch.mean(critic_fake)) + LAMBDA_GP * gp)
+
+            #############################################################################################
             loss_critic = -(torch.mean(critic_real) - torch.mean(critic_fake))
             critic.zero_grad()
             loss_critic.backward(retain_graph=True)
