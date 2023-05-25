@@ -46,3 +46,8 @@ class Discriminator(nn.Module):
         x = self.initial(x)
         x = self.model(x)
         return x
+
+# Let's test and check whether the model is working or not
+def test():
+    # Input image size is 256x256
+    x = torch.randn((1, 3, 256, 256))
