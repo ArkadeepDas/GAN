@@ -8,7 +8,7 @@ class CNNBlock(nn.Module):
         # The Block structure is: 1)Conv -> 2)BatchNorm -> 3)LeakyReLU
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 4, stride, padding=1, bias=False, padding_mode='reflect'),
-            nn.BatchNorm2d(),
+            nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(0.2)
         )
     
@@ -39,6 +39,9 @@ class Discriminator(nn.Module):
                 CNNBlock(in_channels, feature, stride=1 if feature == features[-1] else 2)
             )
             in_channels = feature
+        layers.append(
+            nn.Conv2d(in_channels, 1, kernel_size = 4, stride = 1, padding = 1, padding_mode = 'reflect')
+        )
         self.model = nn.Sequential(*layers)
     
     def forward(self, x, y):
@@ -51,3 +54,12 @@ class Discriminator(nn.Module):
 def test():
     # Input image size is 256x256
     x = torch.randn((1, 3, 256, 256))
+    # Output image size is 256x256
+    y = torch.randn((1, 3, 256, 256))
+    model = Discriminator()
+    pred = model(x, y)
+    # We get the shape 30x30
+    print(pred.shape)
+
+if __name__ == '__main__':
+    test()
