@@ -86,7 +86,7 @@ def test():
     x = torch.randn((1, 3, 256, 256))
     model = Generator()
     pred = model(x)
-    # We get the shape 30x30
+    # We get the shape 256x256
     print(pred.shape)
 
 if __name__ == '__main__':
