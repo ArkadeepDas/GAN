@@ -40,7 +40,7 @@ class ResidualBlock(nn.Module):
 # Let's create the Generator Model
 # Initially it's Conv2D -> ReLU
 class Generator(nn.Module):
-    def __init__(self, image_channels, out_channels, num_residual = 9):
+    def __init__(self, image_channels, out_channels = 64, num_residual = 9):
         super().__init__()
         # This is the initial block
         self.initial = nn.Sequential(
