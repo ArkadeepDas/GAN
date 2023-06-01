@@ -18,6 +18,53 @@ from torchvision.utils import save_image
 from Cycle_GANs_Discriminator import Discriminator
 from Cycle_GANs_Generator import Generator
 
+# Let's create the 'train()' function
+def train(disc_Z, disc_H, gen_Z, gen_H, optimizer_gen, optimizer_disc, train_loader, L1, MSE):
+    loop = tqdm(train_loader, leave = True)
+    for idx, (zebra, horse) in enumerate(loop):
+        zebra = zebra.to(Cycle_GANs_Config.DEVICE)
+        horse = horse.to(Cycle_GANs_Config.DEVICE)
+
+        # The main part starts here. 
+        # 1) train discriminator.
+        # Create fake horse from generator of horse by passing zebra image in generator 
+        fake_horse = gen_H(zebra) # Output shape = 30x30
+        # Now discriminator of horse take real horse and the fake horse
+        disc_H_real = disc_H(horse) # Output shape = 30x30
+        disc_H_fake = disc_H(fake_horse.detach()) # Output shape = 30x30
+        # Real is identify as 1
+        disc_H_real_loss = MSE(disc_H_real, torch.ones_like(disc_H_real))
+        # Fake is identify as 0
+        disc_H_fake_loss = MSE(disc_H_fake, torch.zeros_like(disc_H_fake))
+        disc_H_loss = (disc_H_real_loss + disc_H_fake_loss) / 2
+
+        # Create fake zebra from generator of zebra by passing zebra image in generator
+        fake_zebra = gen_Z(horse) # Output shape = 30x30
+        # Now discriminator of zebra take real zebra and the fake zebra
+        disc_Z_real = disc_H(zebra) # Output shape = 30x30
+        disc_Z_fake = disc_H(fake_zebra.detach()) # Output shape = 30x30
+         # Real is identify as 1
+        disc_Z_real_loss = MSE(disc_Z_real, torch.ones_like(disc_Z_real))
+        # Fake is identify as 0
+        disc_Z_fake_loss = MSE(disc_Z_fake, torch.zeros_like(disc_Z_fake))
+        disc_Z_loss = (disc_Z_real_loss + disc_Z_fake_loss) / 2
+
+        # The total loss
+        D_Loss = (disc_H_loss + disc_Z_loss) / 2
+
+        optimizer_disc.zero_grad()
+        D_Loss.backword()
+        optimizer_disc.step()
+
+        # 2) train generator
+        disc_H_fake = disc_H(fake_horse)
+        disc_Z_fake = disc_H(fake_zebra)
+        # Loss to fool discriminator
+        gen_H_loss = MSE(disc_H_fake, torch.ones_like(disc_H_fake))
+        gen_Z_loss = MSE(disc_Z_fake, torch.ones_like(disc_Z_fake))
+
+        # Now we have to calculate cycle loss
+
 def main():
     # Initializing discriminator model
     disc_H = Discriminator(in_channels = 3).to(Cycle_GANs_Config.DEVICE) # Classifying images of horses(Real horse or fake horse)
@@ -54,4 +101,15 @@ def main():
     
     train_dataset = ZebraHorseDataset(root_zebra = Cycle_GANs_Config.TRAIN_DIR + '/trainB', root_horse = Cycle_GANs_Config.TRAIN_DIR + '/trainA', transform = Cycle_GANs_Config.transforms)
     validation_dataset = ZebraHorseDataset(root_zebra = Cycle_GANs_Config.TRAIN_DIR + '/testB', root_horse = Cycle_GANs_Config.TRAIN_DIR + '/testA', transform = Cycle_GANs_Config.transforms)
-    
+
+    train_loader = DataLoader(train_dataset, batch_size = Cycle_GANs_Config.BATCH_SIZE, shuffle = True, num_workers = Cycle_GANs_Config.NUM_WORKERS, pin_memory = True)
+    validation_loader = DataLoader(validation_dataset, batch_size = 1, shuffle = True, pin_memory = True)
+
+    for epoch in range(Cycle_GANs_Config.NUM_EPOCH):
+        train(disc_Z, disc_H, gen_Z, gen_H, optimizer_gen, optimizer_disc, train_loader, L1, MSE)
+
+        if Cycle_GANs_Config.SAVE_MODEL:
+            save_checkpoint(gen_H, optimizer_gen, file_name = Cycle_GANs_Config.CHECKPOINT_GEN_H)
+            save_checkpoint(gen_Z, optimizer_gen, file_name = Cycle_GANs_Config.CHECKPOINT_GEN_Z)
+            save_checkpoint(disc_H, optimizer_disc, file_name = Cycle_GANs_Config.CHECKPOINT_CRITIC_H)
+            save_checkpoint(disc_Z, optimizer_disc, file_name = Cycle_GANs_Config.CHECKPOINT_CRITIC_Z)
