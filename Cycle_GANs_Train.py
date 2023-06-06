@@ -64,6 +64,33 @@ def train(disc_Z, disc_H, gen_Z, gen_H, optimizer_gen, optimizer_disc, train_loa
         gen_Z_loss = MSE(disc_Z_fake, torch.ones_like(disc_Z_fake))
 
         # Now we have to calculate cycle loss
+        ############################################################################
+        ################################ Cycle part ################################
+        # We take fake horse and try to generate original zebra
+        cycle_zebra = gen_Z(fake_horse)
+        # We take fake zebra and try to generate original horse
+        cycle_horse = gen_Z(fake_zebra)
+        # Recontruction image loss calculation
+        cycle_zebra_loss = L1(zebra, cycle_zebra)
+        cycle_horse_loss = L1(horse, cycle_horse)
+        
+        # Now let's create identity loss
+        identity_zebra = gen_Z(zebra)
+        identity_zebra_loss = L1(zebra, identity_zebra)
+        identity_horse = gen_H(horse)
+        identity_horse_loss = L1(horse, identity_horse)
+
+        # Let's putt all the loss together
+        G_loss = (
+            gen_H_loss + gen_Z_loss + (cycle_zebra_loss * Cycle_GANs_Config.LAMBDA_CYCLE) +
+            (cycle_horse_loss * Cycle_GANs_Config.LAMBDA_CYCLE) + (identity_zebra_loss * Cycle_GANs_Config.LAMBDA_IDENTITY) +
+            (identity_horse_loss * Cycle_GANs_Config.LAMBDA_IDENTITY)
+        )
+        # But identity loss is actually unnecessary. We can ignore
+        optimizer_gen.zero_grad()
+        G_loss.backword()
+        optimizer_gen.step()
+        print('Working')
 
 def main():
     # Initializing discriminator model
@@ -113,3 +140,6 @@ def main():
             save_checkpoint(gen_Z, optimizer_gen, file_name = Cycle_GANs_Config.CHECKPOINT_GEN_Z)
             save_checkpoint(disc_H, optimizer_disc, file_name = Cycle_GANs_Config.CHECKPOINT_CRITIC_H)
             save_checkpoint(disc_Z, optimizer_disc, file_name = Cycle_GANs_Config.CHECKPOINT_CRITIC_Z)
+
+if __name__ == '__main__':
+    main()
