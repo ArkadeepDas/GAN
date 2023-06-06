@@ -21,6 +21,8 @@ from Cycle_GANs_Generator import Generator
 # Let's create the 'train()' function
 def train(disc_Z, disc_H, gen_Z, gen_H, optimizer_gen, optimizer_disc, train_loader, L1, MSE):
     loop = tqdm(train_loader, leave = True)
+    H_reals = 0
+    H_fakes = 0
     for idx, (zebra, horse) in enumerate(loop):
         zebra = zebra.to(Cycle_GANs_Config.DEVICE)
         horse = horse.to(Cycle_GANs_Config.DEVICE)
@@ -90,7 +92,12 @@ def train(disc_Z, disc_H, gen_Z, gen_H, optimizer_gen, optimizer_disc, train_loa
         optimizer_gen.zero_grad()
         G_loss.backword()
         optimizer_gen.step()
-        print('Working')
+        
+        # Add testing
+        if idx % 200 == 0:
+            save_image(fake_horse * 0.5 + 0.5, f"saved_images/horse_{idx}.png")
+            save_image(fake_zebra * 0.5 + 0.5, f"saved_images/zebra_{idx}.png")
+        loop.set_postfix(H_real=H_reals / (idx + 1), H_fake=H_fakes / (idx + 1))
 
 def main():
     # Initializing discriminator model
