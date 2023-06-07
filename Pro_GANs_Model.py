@@ -31,7 +31,13 @@ class WSConv2D(nn.Module):
 
 # Pixel Normalization
 class PixNorm(nn.Module):
-    pass
+    def __init__(self):
+        super().__init__()
+        self.epsilon = 1e-8
+    
+    def forward(self, x):
+        # This is the pixel normalization equation
+        return x / torch.sqrt(torch.mean(x**2, dim = 1, keepdim = True) + self.epsilon)
 
 # Simple Conv block for the blocks
 class ConvBlock(nn.Module):
