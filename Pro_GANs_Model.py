@@ -119,4 +119,45 @@ class Generator(nn.Module):
 
 # Discriminator
 class Discriminator(nn.Module):
-    pass
+    def __init__(self, z_dim, in_channels, image_channels = 3):
+        super().__init__()
+        # The architecture is opposite of generator
+        self.prog_blocks, self.rgb_layer = nn.ModuleList(), nn.ModuleList()
+        self.leaky = nn.LeakyReLU(0.2)
+
+        # In the factor list we move from backward to front 
+        for i in range(len(factors)-1, 0, -1):
+            conv_in_channels = int(in_channels * factors[i])
+            conv_out_channels = int(in_channels * factors[i-1])
+            self.prog_blocks.append(ConvBlock(in_channels = conv_in_channels, out_channels = conv_out_channels, use_pixelnorm = False))
+            self.rgb_layer.append(WSConv2D(in_channels = image_channels, out_channels = conv_in_channels, kernel_size = 1, stride = 1))
+        
+        # Here we create end blocks
+        # The initial RGB here is mirror of the generator initial RGB but it is in the last layer
+        # This is 4x4 resolution 3 -> 512 mapping
+        self.initial_rgb = WSConv2D(in_channels = image_channels, out_channels = in_channels, kernel_size = 1, stride = 1) 
+        # This is the downsampling
+        self.avg_pool = nn.AvgPool2d(kernel_size = 2, stride = 1)
+        # This is the final block 4x4
+        self.final_block = nn.Sequential(
+            WSConv2D(in_channels = in_channels+1, out_channels = in_channels, kernel_size = 3, stride = 1, padding = 1),
+            nn.LeakyReLU(0.2),
+            WSConv2D(in_channels = in_channels, out_channels = in_channels, kernel_size = 4, padding = 0, stride = 1),
+            nn.LeakyReLU(0.2),
+            # Final linear layer. They use neural network we use CNN same way
+            WSConv2D(in_channels = in_channels, out_channels = 1, kernel_size = 1, padding = 0, stride = 1)
+        )
+
+    def fade_in(self, alpha, downscaled, out):
+        # out = output from the conv layer
+        # downscale = output from average pooling
+        return (alpha * out + (1 - alpha) * downscaled)
+
+    def minibatch_std(self, x):
+        # It gives the std of every example of x
+        batch_statistics = torch.std(x, dim = 0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3]) # N x C x W x H -> N (We get single scaler value). We repeat this in a single channel in entire image
+        # This is the reason the dimention increased by 1
+        return torch.cat([x, batch_statistics], dim = 1)
+
+    def forward(self, x):
+        pass
