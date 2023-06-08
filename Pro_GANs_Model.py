@@ -120,7 +120,7 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels, image_channels = 3):
         super().__init__()
         # The architecture is opposite of generator
-        self.prog_blocks, self.rgb_layer = nn.ModuleList(), nn.ModuleList()
+        self.prog_blocks, self.rgb_layer = nn.ModuleList([]), nn.ModuleList([])
         self.leaky = nn.LeakyReLU(0.2)
 
         # In the factor list we move from backward to front
@@ -138,7 +138,7 @@ class Discriminator(nn.Module):
         # Add in the last
         self.rgb_layer.append(self.initial_rgb)
         # This is the downsampling
-        self.avg_pool = nn.AvgPool2d(kernel_size = 2, stride = 1)
+        self.avg_pool = nn.AvgPool2d(kernel_size = 2, stride = 2)
         # This is the final block 4x4
         self.final_block = nn.Sequential(
             WSConv2D(in_channels = in_channels+1, out_channels = in_channels, kernel_size = 3, stride = 1, padding = 1),
@@ -185,14 +185,13 @@ class Discriminator(nn.Module):
         out = self.minibatch_std(out)
         out = self.final_block(out).view(out.shape[0], -1) # 4x4 - > 1x1
         return out
-    
+
 # Let's do some test cases
 if __name__ == '__main__':
     Z_DIM = 100
     IN_CHANNELS = 256
     gen = Generator(z_dim = Z_DIM, in_channels = IN_CHANNELS, image_channels = 3)
     disc = Discriminator(in_channels = IN_CHANNELS, image_channels = 3)
-
     for image_size in [4, 8, 16, 32, 64, 128, 256, 512, 1024]:
         num_steps = int(log2(image_size / 4))
         print(num_steps)
@@ -201,8 +200,8 @@ if __name__ == '__main__':
         assert img.shape == (1, 3, image_size, image_size)
         out = disc(img, 0.5, num_steps)
         print(out.shape)
-        # assert out.shape == (1, 1) 
+        assert out.shape == (1, 1) 
         print(f'Success! At image size: {image_size}')
-
-        if image_size == 64:
+        # Because of low memory just test upto 256 x 256
+        if image_size == 256:
             break
