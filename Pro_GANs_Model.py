@@ -65,7 +65,57 @@ class ConvBlock(nn.Module):
 
 # Generator
 class Generator(nn.Module):
-    pass
+    def __init__(self, z_dim, in_channels, image_channels = 3):
+        super().__init__()
+        # First layer for the generator
+        # Here we use Pixel Normalization in the begining
+        # The architecture of the begining layer is PixelNorm -> ConvTr2D -> LeakyReLU -> WSConv2D -> LeakyReLU -> PixlNorm
+        self.initial = nn.Sequential(
+            PixNorm(),
+            nn.ConvTranspose2d(in_channels = z_dim, out_channels = in_channels, kernel_size = 4, stride = 1, padding = 0), # 1x1 -> 4x4
+            nn.LeakyReLU(0.2),
+            WSConv2D(in_channels = in_channels, out_channels = in_channels, kernel_size = 3, stride = 1, padding = 1),
+            nn.LeakyReLU(0.2),
+            PixNorm()
+        )
+        self.initial_RGB = WSConv2D(in_channels = in_channels, out_channels = image_channels, kernel_size = 1, stride = 1, padding = 0)
+        # After each block we need a RGB
+        # 1) Progress Block -> 2) RGB
+        self.progress_block, self.rgb_layer = nn.ModuleList(), nn.ModuleList(self.initial_RGB)
+
+        # Now using the factors = [1, 1, 1, 1, 1/2, 1/4, 1/8, 1/16, 1/32] we create blocks
+        for i in range(len(factors)-1):
+            # factors[i] -> factors[i+1]
+            conv_in_channels = int(in_channels * factors[i])
+            conv_out_channels = int(in_channels * factors[i+1])
+            # One CNN Block -> RGB layer
+            self.progress_block.append(ConvBlock(in_channels = conv_in_channels, out_channels = conv_out_channels))
+            self.rgb_layer.append(WSConv2D(conv_out_channels, image_channels, kernel_size = 1, stride = 1))
+
+    # We are going to have fade in layer which use alpha
+    def fade_in(self, alpha, upscale_image, generated_image):
+        return torch.tanh(alpha * generated_image + (1-alpha) * upscale_image)
+    
+    # We need alpha value and steps = 0 -> 4x4, steps = 1 -> 8x8, ...
+    def forward(self, x, alpha, steps): 
+        out = self.initial(x) # 4x4
+        
+        # If we only use one step then just the initial step will happen
+        if steps == 0:
+            self.initial_RGB(x)
+        for step in range(steps):
+            # Upsample -> CNN Block
+            # The Upsampling is different. They upsample by using nearest neighbour. Not using ConvTranspose2d
+            upscaled = F.interpolate(out, scale_factor = 2, model = 'nearest')
+            out = self.progress_block[step](upscaled)
+        
+        # Before the last layer the RGB layer will create
+        # Only before the output we use it
+        # We want it at the end
+        final_upscaled =self.rgb_layer[steps - 1](upscaled)
+        final_out = self.rgb_layer[steps](out)
+        # For incriment the structure of the image we need this
+        return self.fade_in(alpha, final_upscaled, final_out)
 
 # Discriminator
 class Discriminator(nn.Module):
