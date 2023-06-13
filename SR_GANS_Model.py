@@ -71,7 +71,7 @@ class Generator(nn.Module):
 
 # Create the discriminator
 class Discriminator(nn.Module):
-    def __init__(self, in_channels, out_channels = [64, 64, 128, 128, 256, 256, 512, 512]):
+    def __init__(self, in_channels = 3, out_channels = [64, 64, 128, 128, 256, 256, 512, 512]):
         super().__init__()
         blocks = []
         for idx, feature in enumerate(out_channels):
@@ -92,3 +92,17 @@ class Discriminator(nn.Module):
         x = self.blocks(x)
         x = self.classifier(x)
         return x
+    
+def test():
+    low_resolution = 24 # In paper low resolution is 24x24
+    x = torch.randn((1, 3, low_resolution, low_resolution))
+    gen = Generator()
+    out_gen = gen(x)
+    disc = Discriminator()
+    out_disc = disc(x)
+
+    print(out_gen.shape)
+    print(out_disc.shape)
+
+if __name__ == '__main__':
+    test()
