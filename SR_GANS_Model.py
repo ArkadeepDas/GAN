@@ -71,4 +71,24 @@ class Generator(nn.Module):
 
 # Create the discriminator
 class Discriminator(nn.Module):
-    pass
+    def __init__(self, in_channels, out_channels = [64, 64, 128, 128, 256, 256, 512, 512]):
+        super().__init__()
+        blocks = []
+        for idx, feature in enumerate(out_channels):
+            blocks.append(
+                ConvBlock(in_channels = in_channels, out_channels = feature, kernel_size = 3, stride = 1 + idx % 2, padding = 1, discriminator = True, use_activation = True, use_batchNorm = False if idx == 0 else True)
+            )
+            in_channels = feature
+        self.blocks = nn.Sequential(*blocks)
+        self.classifier = nn.Sequential(
+            nn.AdaptiveAvgPool2d((6,6)),
+            nn.Flatten(),
+            nn.Linear(512 * 6 * 6, 1024),
+            nn.LeakyReLU(0.2, inplace = True),
+            nn.Linear(1024, 1)
+        )
+    # We don't use sigmoid here because we use BCE Loss with logit = True
+    def forward(self, x):
+        x = self.blocks(x)
+        x = self.classifier(x)
+        return x
