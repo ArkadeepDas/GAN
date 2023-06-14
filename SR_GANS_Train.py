@@ -80,5 +80,6 @@ def main():
             save_checkpoint(model = gen, optimizer = optimizer_gen, file_name = SR_GANS_Config.CHECKPOINT_GEN)
             save_checkpoint(model = disc, optimizer = optimizer_disc, file_name = SR_GANS_Config.CHECKPOINT_DISC)
 
+
 if __name__ == '__main__':
     main()
